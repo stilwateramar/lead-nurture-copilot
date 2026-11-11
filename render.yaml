@@ -1,0 +1,48 @@
+# Render Blueprint: New > Blueprint > pick this repo. Secrets marked sync:false are asked for in the dashboard.
+services:
+  - type: web
+    name: lead-nurture-copilot
+    runtime: node
+    plan: starter            # free also works but sleeps when idle
+    region: singapore
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      - key: APP_USER
+        value: admin
+      - key: APP_PASSWORD        # required in production; the app refuses requests without it
+        sync: false
+      - key: AC_API_URL          # https://youraccount.api-us1.com  (Settings > Developer)
+        sync: false
+      - key: AC_API_KEY          # Settings > Developer > API Access
+        sync: false
+      - key: SITE_DOMAIN
+        value: akdaisolutions.com
+      - key: AC_LEAD_TAG_ID      # optional: only list contacts with this tag id
+        sync: false
+      - key: AC_MAX_LEADS
+        value: "25"
+      - key: ACTIVITY_WINDOW_DAYS
+        value: "30"
+      - key: AC_OPENS_SOURCE     # v1 | off
+        value: v1
+      - key: LLM_PROVIDER        # anthropic | openrouter
+        value: anthropic
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-sonnet-5-5
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: SENDER_NAME
+        value: Amar Kumar Dani
+      - key: SENDER_COMPANY
+        value: AKD AI Solutions
+      - key: SENDER_BOOKING_URL
+        sync: false

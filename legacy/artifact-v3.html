@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lead Nurture Copilot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* layout: one narrow column; lead verdict and one prompt up top, everything else in collapsed rows */
+  --bg:#fbfbf9; --ink:#1a1f26; --muted:#6b727c; --line:#e7e8e3; --soft:#f3f4f0;
+  --accent:#2b47c4; --on-accent:#ffffff;
+  --hot:#c2410c; --warm:#a16207; --cool:#4a6a8a; --ok:#15803d;
+  --font-display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --font-body:"Public Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121519; --ink:#e6e8eb; --muted:#9299a3; --line:#262b32; --soft:#1a1e24;
+    --accent:#8b9fff; --on-accent:#0c1022;
+    --hot:#ff8f66; --warm:#e8b75c; --cool:#9bb8d5; --ok:#5ccc95;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121519; --ink:#e6e8eb; --muted:#9299a3; --line:#262b32; --soft:#1a1e24;
+  --accent:#8b9fff; --on-accent:#0c1022;
+  --hot:#ff8f66; --warm:#e8b75c; --cool:#9bb8d5; --ok:#5ccc95;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--font-body)}
+h1,h2,h3{margin:0;font-weight:600;text-wrap:balance}
+p{margin:0}
+.wrap{max-width:680px;margin:0 auto;padding:40px 20px 64px;display:flex;flex-direction:column;gap:28px}
+@media (max-width:480px){.wrap{padding:24px 16px 48px;gap:22px}}
+
+/* header */
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.top h1{font:600 18px/1.2 var(--font-display);letter-spacing:-.01em}
+.meta{font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.okdot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--ok);margin-right:5px;vertical-align:1px}
+
+/* lead picker */
+.picker{display:flex;flex-direction:column;gap:10px}
+.leads{display:flex;gap:6px;flex-wrap:wrap}
+.lead-chip{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink);font:500 13.5px var(--font-body);cursor:pointer}
+.lead-chip:hover{border-color:var(--muted)}
+.lead-chip[aria-pressed="true"]{border-color:var(--ink);background:var(--soft)}
+.lead-chip:disabled{opacity:.45;cursor:default}
+.g{width:7px;height:7px;border-radius:50%;background:var(--line);flex:none}
+.g.hot{background:var(--hot)} .g.warm{background:var(--warm)} .g.cool{background:var(--cool)}
+.lookup{display:flex;gap:6px}
+.lookup input{flex:1}
+input[type=text],input[type=email],input[type=url],textarea{width:100%;font:inherit;font-size:14px;padding:8px 11px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--ink)}
+input::placeholder{color:var(--muted)}
+textarea{resize:vertical;line-height:1.6}
+label.lbl{font-size:12px;color:var(--muted);display:block;margin-bottom:3px}
+
+/* buttons */
+button{font:inherit;cursor:pointer}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--ink);font-weight:500;font-size:14px;line-height:1.2}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.text{border-color:transparent;color:var(--muted);padding-left:8px;padding-right:8px}
+.btn.text:hover{color:var(--ink)}
+.btn:disabled{opacity:.5;cursor:default}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+
+.cta{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+.cta .q{font-weight:600;font-size:16px}
+.cta .why{font-size:13.5px;color:var(--muted);margin-top:2px;max-width:46ch}
+.get{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.get .or{font-size:13px;color:var(--muted)}
+.get .lookup{flex:1;min-width:260px}
+.lead-rows{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.lead-rows li{border-bottom:1px solid var(--line)}
+.lead-row{width:100%;display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:2px 12px;align-items:center;padding:10px 8px;border:0;background:transparent;color:var(--ink);text-align:left;border-radius:6px}
+.lead-row:hover{background:var(--soft)}
+.lead-row[aria-pressed="true"]{background:var(--soft)}
+.lead-row .ln{font-weight:500;font-size:14px}
+.lead-row .le{grid-column:2;font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lead-row .lg{grid-row:1 / span 2;grid-column:3;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;text-align:right;line-height:1.3}
+.lead-row .lg small{display:block;font-weight:400;text-transform:none;letter-spacing:0;color:var(--ok)}
+.lg.hot{color:var(--hot)} .lg.warm{color:var(--warm)} .lg.cool{color:var(--cool)}
+.lead-row .g{grid-row:1 / span 2}
+.list-h{font-size:12.5px;color:var(--muted);margin-bottom:6px}
+
+/* lead verdict */
+.lead{display:flex;flex-direction:column;gap:16px}
+.lead:empty{display:none}
+.lead-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.lead-top h2{font:600 26px/1.15 var(--font-display);letter-spacing:-.015em}
+.sub{color:var(--muted);font-size:14px;margin-top:4px}
+.score{text-align:right;line-height:1}
+.score b{font:600 30px var(--font-display);font-variant-numeric:tabular-nums;display:block}
+.score span{font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+.score.hot{color:var(--hot)} .score.warm{color:var(--warm)} .score.cool{color:var(--cool)}
+.summary{max-width:62ch}
+.sig{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:14px;color:var(--muted)}
+.sig li{padding-left:14px;position:relative}
+.sig li::before{content:"";position:absolute;left:0;top:.62em;width:6px;height:6px;border-radius:50%;background:var(--cool)}
+.sig li.hot::before{background:var(--hot)} .sig li.warm::before{background:var(--warm)}
+.ask{border-top:1px solid var(--line);padding-top:16px;display:flex;flex-direction:column;gap:10px}
+.ask .q{font-weight:600;font-size:16px}
+.ask .why{font-size:13.5px;color:var(--muted)}
+.done-note{font-size:13.5px;color:var(--ok)}
+
+/* progress */
+.progress{display:flex;flex-direction:column;gap:10px;padding-top:6px}
+.bar{height:3px;background:var(--line);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .35s ease}
+.step{font-size:14px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.spin{display:inline-block;width:11px;height:11px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sp .8s linear infinite;flex:none}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}.bar i{transition:none}}
+
+/* draft */
+.draft{display:flex;flex-direction:column;gap:10px;border:1px solid var(--line);border-radius:10px;padding:14px}
+.draft .to{font-size:13px;color:var(--muted)}
+.note{font-size:13px;color:var(--muted)}
+.note.warn{color:var(--warm)} .note.ok{color:var(--ok)}
+.note:empty{display:none}
+.confirm{font-size:13.5px;background:var(--soft);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+
+/* expandable rows */
+.more{display:flex;flex-direction:column}
+details{border-top:1px solid var(--line)}
+details:last-child{border-bottom:1px solid var(--line)}
+summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 2px;font-size:14px;font-weight:500}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";color:var(--muted);font-weight:400;font-size:18px;line-height:1;width:14px;text-align:center}
+details[open] > summary::after{content:"–"}
+summary .s-meta{margin-left:auto;font-size:13px;color:var(--muted);font-weight:400;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%}
+.panel{padding:2px 2px 18px;display:flex;flex-direction:column;gap:14px}
+.panel h3{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+
+table{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums}
+th{text-align:left;font-weight:500;color:var(--muted);font-size:12px;padding:4px 10px 6px 0;border-bottom:1px solid var(--line)}
+td{padding:7px 10px 7px 0;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+.num{text-align:right;white-space:nowrap}
+.tsub{display:block;font-size:12px;color:var(--muted)}
+.tbl{overflow-x:auto}
+
+.match{display:flex;flex-direction:column;gap:3px}
+.match .k{font-size:12px;color:var(--muted)}
+.match .t{font-weight:600}
+.match .d{font-size:13.5px;color:var(--muted)}
+.match a{font-size:13px;color:var(--accent);overflow-wrap:anywhere}
+
+.log{font:12px/1.7 var(--font-mono);margin:0;padding:0;list-style:none;color:var(--muted)}
+.log li{display:grid;grid-template-columns:64px 14px minmax(0,1fr);gap:6px}
+.log .ok{color:var(--ok)}
+.log .m{color:var(--ink);overflow-wrap:anywhere}
+.log .r{color:var(--muted)}
+pre.json{font:12px/1.5 var(--font-mono);background:var(--soft);padding:12px;border-radius:8px;overflow:auto;max-height:300px;margin:0}
+
+.src{display:flex;flex-direction:column;gap:6px}
+.src-row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-size:14px}
+.drop{border:1px dashed var(--line);border-radius:8px;padding:14px;text-align:center;font-size:13px;color:var(--muted)}
+.drop.over{border-color:var(--accent);color:var(--accent)}
+.file-btn{position:relative;overflow:hidden}
+.file-btn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.help{font-size:12.5px;color:var(--muted)}
+.help code{font:12px var(--font-mono);color:var(--ink)}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fields .full{grid-column:1 / -1}
+@media (max-width:480px){.fields{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header class="top">
+    <div>
+      <h1>Lead Nurture</h1>
+      <p class="meta"><span id="ac-line">ActiveCampaign not connected</span><span aria-hidden="true">·</span><span id="repo-line">sample content</span></p>
+    </div>
+  </header>
+
+  <section class="picker" id="picker" aria-label="Leads"></section>
+
+  <section class="lead" id="lead" aria-live="polite"></section>
+
+  <section class="more" aria-label="Details">
+    <details id="d-activity"><summary>Activity <span class="s-meta" id="m-activity"></span></summary>
+      <div class="panel"><h3>Website</h3><div class="tbl" id="web"></div><h3>Email</h3><div class="tbl" id="mail"></div></div>
+    </details>
+    <details id="d-content"><summary>Matched content <span class="s-meta" id="m-content"></span></summary>
+      <div class="panel" id="content"></div>
+    </details>
+    <details id="d-log"><summary>Extraction log <span class="s-meta" id="m-log"></span></summary>
+      <div class="panel"><ol class="log" id="log"></ol></div>
+    </details>
+    <details id="d-sources"><summary>Sources &amp; sender <span class="s-meta" id="m-sources"></span></summary>
+      <div class="panel">
+        <div class="src">
+          <h3>ActiveCampaign</h3>
+          <div class="src-row"><span id="ac-detail">Not connected</span><button class="btn text" type="button" id="ac-connect" hidden>Disconnect</button></div>
+          <p class="help">Reads contacts, site-tracking visits and campaign opens and clicks.</p>
+        </div>
+        <div class="src">
+          <h3>Case studies &amp; LinkedIn posts</h3>
+          <div class="src-row"><span id="repo-detail"></span><button class="btn text" type="button" id="repo-reset" hidden>Use sample</button></div>
+          <div class="drop" id="drop">Drop a folder here, or
+            <span class="btn text file-btn" style="padding:0 2px;color:var(--accent)">choose a folder<input type="file" id="folder-input" webkitdirectory directory multiple aria-label="Choose a folder of case studies and LinkedIn posts"></span>
+            /
+            <span class="btn text file-btn" style="padding:0 2px;color:var(--accent)">files<input type="file" id="files-input" multiple accept=".md,.markdown,.txt,.json" aria-label="Choose files"></span>
+          </div>
+          <p class="note" id="repo-note"></p>
+          <p class="help">.md, .txt or .json, read in your browser only. Folder names containing <code>case</code> become case studies; <code>linkedin</code> or <code>post</code> become posts. Optional front matter: <code>title</code>, <code>tags</code>, <code>url</code>, <code>type</code>.</p>
+        </div>
+        <div class="src">
+          <h3>Sender</h3>
+          <div class="fields">
+            <div><label class="lbl" for="s-name">Name</label><input type="text" id="s-name"></div>
+            <div><label class="lbl" for="s-company">Company</label><input type="text" id="s-company"></div>
+            <div class="full"><label class="lbl" for="s-booking">Booking link (used for hot leads)</label><input type="url" id="s-booking" placeholder="https://cal.com/…"></div>
+          </div>
+        </div>
+      </div>
+    </details>
+    <details id="d-payload"><summary>Raw payload <span class="s-meta">JSON</span></summary>
+      <div class="panel"><pre class="json" id="payload">{}</pre></div>
+    </details>
+  </section>
+</main>
+
+<script>
+(function(){
+"use strict";
+const reduce = !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
+const wait = ms => new Promise(r => setTimeout(r, reduce ? 0 : ms));
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const DAY = 864e5;
+const ago = d => d === 0 ? "today" : d === 1 ? "yesterday" : d + " days ago";
+const dateOf = d => new Date(Date.now() - d * DAY).toLocaleDateString(undefined, {day:"numeric", month:"short"});
+const clock = () => new Date().toLocaleTimeString(undefined, {hour:"2-digit", minute:"2-digit", second:"2-digit", hour12:false});
+const sum = (a, f) => a.reduce((t, x) => t + f(x), 0);
+const listJoin = a => a.length <= 1 ? (a[0] || "") : a.slice(0, -1).join(", ") + " and " + a[a.length - 1];
+const store = {
+  get(k, f){ try{ const v = localStorage.getItem(k); return v == null ? f : JSON.parse(v); }catch(e){ return f; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+const SITE = "akdaisolutions.com";
+
+/* ---------- Lead data ---------- */
+const LEADS = [
+  { id:"L1", contactId:48213, name:"Rachel Okafor", email:"rachel@brightline-growth.example", title:"Founder & CEO", company:"Brightline Growth Co.", location:"Austin, US",
+    tags:["agency","us-market","webinar-oct"], stage:"Qualified · discovery call pending", source:"Lemlist outbound, replied",
+    visits:[
+      {path:"/pricing", title:"Pricing", topics:["pricing"], daysAgo:1, count:2, secs:70},
+      {path:"/case-studies/ai-performance-marketing-optimizer", title:"Case study: AI performance-marketing optimizer", topics:["performance marketing","budget allocation","google ads","meta ads"], daysAgo:1, count:2, secs:155},
+      {path:"/contact", title:"Contact", topics:["contact"], daysAgo:1, count:1, secs:35},
+      {path:"/services/ai-for-agencies", title:"AI for agencies", topics:["agency","performance marketing","automation"], daysAgo:3, count:3, secs:73},
+      {path:"/blog/agency-reporting-automation", title:"Blog: Automating agency client reporting", topics:["reporting","automation","agency"], daysAgo:6, count:1, secs:180}
+    ],
+    emails:[
+      {campaign:"Agency AI playbook #2", subject:"3 AI workflows agencies are shipping this quarter", sent:4, opens:4, clicks:[{label:"Performance-marketing optimizer case study", topics:["performance marketing","budget allocation"]}], topics:["agency","automation"]},
+      {campaign:"Monthly AI notes · Oct", subject:"What we built in October", sent:12, opens:1, clicks:[], topics:["automation"]},
+      {campaign:"Agency AI playbook #1", subject:"Where agencies lose hours every week", sent:19, opens:2, clicks:[{label:"Client reporting automation post", topics:["reporting","automation"]}], topics:["reporting","agency"]}
+    ]},
+  { id:"L2", contactId:48377, name:"Priya Menon", email:"priya.menon@northpeak-logistics.example", title:"Director of Operations", company:"Northpeak Logistics", location:"Bengaluru, IN",
+    tags:["enterprise","india","ops"], stage:"Lead · engaged", source:"Website form, training guide download",
+    visits:[
+      {path:"/case-studies/logistics-lms", title:"Case study: Mobile-first LMS for logistics", topics:["lms","training","logistics"], daysAgo:2, count:3, secs:140},
+      {path:"/pricing", title:"Pricing", topics:["pricing"], daysAgo:2, count:1, secs:95},
+      {path:"/services/custom-software", title:"Custom software development", topics:["custom software"], daysAgo:2, count:1, secs:60},
+      {path:"/blog/mobile-first-training", title:"Blog: Training frontline staff on mobile", topics:["training","lms"], daysAgo:8, count:1, secs:210}
+    ],
+    emails:[
+      {campaign:"Ops & training notes", subject:"Why frontline training fails (and what fixes it)", sent:5, opens:3, clicks:[{label:"Logistics LMS case study", topics:["lms","training","logistics"]}], topics:["training"]},
+      {campaign:"Monthly AI notes · Oct", subject:"What we built in October", sent:12, opens:0, clicks:[], topics:[]}
+    ]},
+  { id:"L3", contactId:48402, name:"Daniel Whitford", email:"daniel@harbourline.example", title:"Head of SEO", company:"Harbourline Digital", location:"Perth, AU",
+    tags:["agency","au-market"], stage:"Lead · nurture", source:"Google Maps scrape → Lemlist",
+    visits:[
+      {path:"/blog/keyword-gap-analysis", title:"Blog: What a keyword-gap tool checks", topics:["seo","keyword research"], daysAgo:5, count:2, secs:130},
+      {path:"/case-studies/seo-keyword-gap-tool", title:"Case study: SEO keyword-gap tool", topics:["seo","keyword research","agency"], daysAgo:5, count:1, secs:190},
+      {path:"/", title:"Home", topics:[], daysAgo:9, count:1, secs:40}
+    ],
+    emails:[
+      {campaign:"Agency AI playbook #2", subject:"3 AI workflows agencies are shipping this quarter", sent:4, opens:2, clicks:[{label:"Keyword-gap analysis post", topics:["seo","keyword research"]}], topics:["agency"]},
+      {campaign:"Monthly AI notes · Oct", subject:"What we built in October", sent:12, opens:1, clicks:[], topics:[]}
+    ]},
+  { id:"L4", contactId:48455, name:"Jason Reyes", email:"jason@tidewater-studio.example", title:"Creative Director", company:"Tidewater Studio", location:"San Diego, US",
+    tags:["agency","creative","us-market"], stage:"Lead · nurture", source:"LinkedIn post engagement",
+    visits:[
+      {path:"/services/ai-content-production", title:"AI content production", topics:["creative","content production"], daysAgo:4, count:2, secs:95},
+      {path:"/blog/human-in-the-loop-creative", title:"Blog: Where people stay in the loop", topics:["creative","image generation"], daysAgo:4, count:1, secs:160},
+      {path:"/case-studies/d2c-product-imagery", title:"Case study: AI product imagery for a D2C brand", topics:["image generation","ecommerce","creative"], daysAgo:10, count:1, secs:120}
+    ],
+    emails:[
+      {campaign:"Creative AI notes", subject:"AI creative pipelines that don't look AI-made", sent:7, opens:2, clicks:[{label:"Human-in-the-loop creative post", topics:["creative","content production"]}], topics:["creative"]},
+      {campaign:"Monthly AI notes · Oct", subject:"What we built in October", sent:12, opens:0, clicks:[], topics:[]}
+    ]},
+  { id:"L5", contactId:48501, name:"Omar Al-Sayed", email:"omar@dunecraft-media.example", title:"Managing Partner", company:"Dunecraft Media", location:"Dubai, UAE",
+    tags:["agency","me-market"], stage:"Lead · cold", source:"Google Maps scrape → Lemlist",
+    visits:[
+      {path:"/", title:"Home", topics:[], daysAgo:17, count:1, secs:25}
+    ],
+    emails:[
+      {campaign:"Agency AI playbook #1", subject:"Where agencies lose hours every week", sent:19, opens:1, clicks:[], topics:["agency","reporting"]},
+      {campaign:"Agency AI playbook #2", subject:"3 AI workflows agencies are shipping this quarter", sent:4, opens:0, clicks:[], topics:["agency","automation"]},
+      {campaign:"Monthly AI notes · Oct", subject:"What we built in October", sent:12, opens:0, clicks:[], topics:[]}
+    ]}
+];
+
+/* ---------- Sample content repository (replace with your own folder) ---------- */
+const SAMPLE_REPO = [
+  {type:"case_study", title:"AI performance-marketing optimizer for agency clients", tags:["performance marketing","budget allocation","google ads","meta ads","agency","automation"], summary:"Agents read Google Ads and Meta performance, propose budget shifts between campaigns, flag weak keywords and audiences, and draft creative tests for the account team to approve."},
+  {type:"case_study", title:"SEO keyword-gap tool for an SEO agency", tags:["seo","keyword research","agency","automation"], summary:"Compares a client site with competitors, groups the keywords competitors rank for that the client does not, and turns the gaps into a prioritised content brief."},
+  {type:"case_study", title:"Plain-English analytics on MongoDB transaction data", tags:["analytics","natural language","reporting","dashboard"], summary:"Ops teams ask questions in plain language; the assistant writes the MongoDB query, runs it, and returns a chart with a short answer."},
+  {type:"case_study", title:"Mobile-first LMS for a logistics company", tags:["lms","training","logistics","custom software"], summary:"A learning platform for drivers and warehouse staff, built from the client's BRD and brand guidelines: courses, quizzes, progress tracking and admin reports."},
+  {type:"case_study", title:"RAG chatbot for sports-club fan engagement", tags:["rag","chatbot","community","fan engagement"], summary:"A fan-facing assistant that answers questions from club content, fixtures and FAQs, grounded in retrieved sources."},
+  {type:"case_study", title:"AI product-imagery pipeline for a D2C perfume brand", tags:["creative","image generation","ecommerce","content production"], summary:"A script that composites product photos into on-brand combo shots, so the marketing team gets campaign visuals without a new shoot."},
+  {type:"linkedin_post", title:"Agencies don't need another dashboard. They need the next decision.", tags:["performance marketing","agency","budget allocation","reporting"], summary:"Why we built optimizer agents that propose a budget move with a reason attached, instead of adding more charts."},
+  {type:"linkedin_post", title:"What a keyword-gap tool actually checks", tags:["seo","keyword research"], summary:"A walk-through of the signals that matter when you compare a site against its competitors."},
+  {type:"linkedin_post", title:"Ask your database a question in plain English", tags:["analytics","natural language","reporting"], summary:"How natural-language querying changes who on the team can get answers from data."},
+  {type:"linkedin_post", title:"Training frontline staff: why we went mobile-first", tags:["lms","training","logistics"], summary:"Drivers and warehouse teams learn on their phones between shifts, so the LMS had to be designed for that."},
+  {type:"linkedin_post", title:"AI creative pipelines: where people stay in the loop", tags:["creative","content production","image generation"], summary:"The steps we automate in creative production and the ones we deliberately leave to designers."},
+  {type:"linkedin_post", title:"Client reporting is the hidden tax on agency margins", tags:["reporting","automation","agency"], summary:"Where agency hours go each month, and which reporting steps are safe to automate first."}
+].map(x => Object.assign({url:"", body:"", file:"sample", sample:true}, x));
+
+/* ---------- State ---------- */
+const state = {
+  connected:false, connecting:false, busy:false,
+  repo:SAMPLE_REPO.slice(), repoLocal:false, repoLabel:"sample content",
+  lead:null, analysis:null,
+  actions:store.get("lnc.actions", {}),
+  sender:store.get("lnc.sender", {name:"Amar Kumar Dani", company:"AKD AI Solutions", booking:""})
+};
+
+/* ---------- Claude (sample capability) ---------- */
+let samplerPromise = null;
+function getSampler(){
+  if (!samplerPromise){
+    samplerPromise = (async () => {
+      try{
+        if (window.claude && typeof window.claude.use === "function") return await window.claude.use("sample");
+      }catch(e){}
+      return null;
+    })();
+  }
+  return samplerPromise;
+}
+getSampler();
+
+/* ---------- Scoring and matching ---------- */
+const rec = d => d <= 3 ? 1.5 : d <= 7 ? 1.2 : d <= 14 ? 1 : 0.6;
+function scoreLead(lead){
+  let s = 0;
+  lead.visits.forEach(v => {
+    let p = v.count * 2;
+    if (/pricing/.test(v.path)) p += 5 * v.count;
+    if (/contact/.test(v.path)) p += 8;
+    if (/case-stud/.test(v.path)) p += 3 * v.count;
+    s += p * rec(v.daysAgo);
+  });
+  lead.emails.forEach(e => { s += (Math.min(e.opens, 5) * 1.5 + e.clicks.length * 6) * rec(e.sent); });
+  s = Math.min(100, Math.round(s));
+  return {s, grade: s >= 45 ? "hot" : s >= 22 ? "warm" : "cool"};
+}
+function interestProfile(lead){
+  const m = new Map();
+  const add = (t, w, why) => {
+    if (!t || t === "pricing" || t === "contact") return;
+    const e = m.get(t) || {topic:t, w:0, why:[]};
+    e.w += w; if (why && e.why.indexOf(why) < 0) e.why.push(why);
+    m.set(t, e);
+  };
+  lead.visits.forEach(v => v.topics.forEach(t => add(t, v.count * 1.5 * rec(v.daysAgo), "visited " + v.title.replace(/^(Case study|Blog): /, "") + " ×" + v.count)));
+  lead.emails.forEach(e => {
+    e.clicks.forEach(c => c.topics.forEach(t => add(t, 6 * rec(e.sent), "clicked “" + c.label + "”")));
+    if (e.opens) e.topics.forEach(t => add(t, Math.min(e.opens, 4) * 0.5 * rec(e.sent), "opened “" + e.subject + "”"));
+  });
+  return Array.from(m.values()).sort((a, b) => b.w - a.w);
+}
+function matchContent(profile, repo){
+  return repo.map(item => {
+    const tags = (item.tags || []).map(t => t.toLowerCase());
+    const title = (item.title || "").toLowerCase();
+    const hay = (title + " " + (item.summary || "") + " " + (item.body || "")).toLowerCase();
+    let score = 0; const hits = [];
+    profile.forEach(p => {
+      const t = p.topic.toLowerCase();
+      let w = 0;
+      if (tags.some(g => g === t || g.indexOf(t) >= 0 || t.indexOf(g) >= 0)) w = 3;
+      else if (title.indexOf(t) >= 0) w = 2;
+      else if (hay.indexOf(t) >= 0) w = 1;
+      if (w){ score += w * p.w; hits.push(p); }
+    });
+    return {item, score, hits};
+  }).filter(x => x.score > 0).sort((a, b) => b.score - a.score);
+}
+function signalsFor(lead){
+  const out = [];
+  const pr = lead.visits.filter(v => /pricing/.test(v.path));
+  if (pr.length) out.push({lvl:"hot", text:"Viewed pricing " + sum(pr, v => v.count) + "×, last seen " + ago(Math.min.apply(null, pr.map(v => v.daysAgo)))});
+  const ct = lead.visits.find(v => /contact/.test(v.path));
+  if (ct) out.push({lvl:"hot", text:"Opened the contact page " + ago(ct.daysAgo) + ", no form submission recorded"});
+  lead.visits.filter(v => /case-stud/.test(v.path)).forEach(v => out.push({lvl:"warm", text:"Read “" + v.title.replace(/^Case study: /, "") + "” " + v.count + "× (avg " + Math.round(v.secs / 6) / 10 + " min)"}));
+  lead.emails.forEach(e => e.clicks.forEach(c => out.push({lvl:"warm", text:"Clicked “" + c.label + "” in " + e.campaign})));
+  lead.emails.filter(e => e.opens >= 3).forEach(e => out.push({lvl:"warm", text:"Opened “" + e.subject + "” " + e.opens + "×"}));
+  if (lead.emails.every(e => !e.clicks.length)) out.push({lvl:"cool", text:"No link clicks across the last " + lead.emails.length + " campaigns"});
+  const last = Math.min.apply(null, lead.visits.map(v => v.daysAgo));
+  if (last > 14) out.push({lvl:"cool", text:"No site visit in " + last + " days"});
+  return out;
+}
+const GRADE_LABEL = {hot:"hot", warm:"warm", cool:"cool"};
+const RECOMMEND = {
+  hot:"Send a case-study email with a direct call invite now, while interest is fresh.",
+  warm:"Send an educational touch: one case study and one LinkedIn post on the topic they are reading about.",
+  cool:"Send a light-touch value email and hold off on asking for a call."
+};
+function analyze(lead){
+  const sc = scoreLead(lead), prof = interestProfile(lead), sig = signalsFor(lead);
+  const matches = matchContent(prof, state.repo);
+  const cs = matches.find(m => m.item.type === "case_study") || null;
+  const post = matches.find(m => m.item.type === "linkedin_post") || null;
+  return {sc, prof, sig, matches, cs, post};
+}
+function localSummary(lead, a){
+  const first = lead.name.split(" ")[0];
+  const pv = sum(lead.visits, v => v.count), days = new Set(lead.visits.map(v => v.daysAgo)).size;
+  const opened = lead.emails.filter(e => e.opens > 0).length, clicks = sum(lead.emails, e => e.clicks.length);
+  const topics = a.prof.slice(0, 3).map(p => p.topic);
+  return first + " scores " + a.sc.s + "/100, which reads as " + GRADE_LABEL[a.sc.grade] + ". In the last 30 days: " + pv + " page view" + (pv === 1 ? "" : "s") + " on " + days + " separate day" + (days === 1 ? "" : "s") +
+    (topics.length ? ", mostly around " + listJoin(topics) : "") + ". Email: opened " + opened + " of " + lead.emails.length + " campaigns, with " + clicks + " link click" + (clicks === 1 ? "" : "s") + ". Recommended: " + RECOMMEND[a.sc.grade].charAt(0).toLowerCase() + RECOMMEND[a.sc.grade].slice(1);
+}
+
+
+function payloadFor(lead){
+  const parts = lead.name.split(" ");
+  return {
+    contact:{id:lead.contactId, email:lead.email, firstName:parts[0], lastName:parts.slice(1).join(" "), title:lead.title, organization:lead.company, location:lead.location, tags:lead.tags, dealStage:lead.stage, source:lead.source},
+    siteTracking:{domain:SITE, window:"30d", visits:lead.visits.map(v => ({url:"https://" + SITE + v.path, pageTitle:v.title, views:v.count, avgSeconds:v.secs, lastVisit:new Date(Date.now() - v.daysAgo * DAY).toISOString().slice(0, 10)}))},
+    emailActivity:lead.emails.map(e => ({campaign:e.campaign, subject:e.subject, sentDate:new Date(Date.now() - e.sent * DAY).toISOString().slice(0, 10), opens:e.opens, clicks:e.clicks.map(c => c.label)}))
+  };
+}
+
+
+function senderNow(){
+  return {name:$("s-name").value.trim() || "Amar Kumar Dani", company:$("s-company").value.trim() || "AKD AI Solutions", booking:$("s-booking").value.trim()};
+}
+function templateEmail(lead, a, sender){
+  const first = lead.name.split(" ")[0];
+  const topic = a.prof[0] ? a.prof[0].topic : "AI for your team";
+  const cs = a.cs && a.cs.item, post = a.post && a.post.item;
+  const booking = sender.booking || "[your booking link]";
+  const g = a.sc.grade;
+  const subject = g === "hot" && cs ? "How we built it: " + cs.title
+    : g === "warm" ? "A short read on " + topic
+    : "Worth a look, " + first + "?";
+  const L = ["Hi " + first + ",", ""];
+  if (g === "hot") L.push("Since you've been looking into " + topic + ", I thought this would be useful.");
+  else if (g === "warm") L.push("You've been reading about " + topic + ", so here are two short pieces that go a level deeper.");
+  else L.push("A quick one with no ask attached: here's something we built recently that may be relevant to " + lead.company + ".");
+  if (cs){ L.push("", cs.title, cs.summary || "", itemLink(cs)); }
+  if (post){ L.push("", "I also wrote about this on LinkedIn: “" + post.title + "”", itemLink(post)); }
+  L.push("");
+  if (g === "hot") L.push("If this is relevant for " + lead.company + ", would a 15-minute call this week help? Pick any slot here: " + booking);
+  else if (g === "warm") L.push("If any of this maps to what you're working on at " + lead.company + ", just reply and I'll share more detail.");
+  else L.push("If the timing isn't right, no problem at all.");
+  L.push("", "Best,", sender.name, sender.company);
+  return {subject, body:L.filter((x, i, arr) => !(x === "" && arr[i - 1] === "")).join("\n"), why:"Template draft based on the " + g + " grade and the top content match."};
+}
+function claudePrompt(lead, a, sender){
+  const cs = a.cs && a.cs.item, post = a.post && a.post.item;
+  const facts = {
+    sender:{name:sender.name, company:sender.company, offering:"AI, ML and data-science services, plus software development and cybersecurity"},
+    lead:{firstName:lead.name.split(" ")[0], title:lead.title, company:lead.company, location:lead.location},
+    engagement:{grade:a.sc.grade, score:a.sc.s, signals:a.sig.map(s => s.text)},
+    topInterests:a.prof.slice(0, 4).map(p => p.topic),
+    recommendedAction:RECOMMEND[a.sc.grade],
+    caseStudy:cs ? {title:cs.title, summary:cs.summary, link:itemLink(cs)} : null,
+    linkedinPost:post ? {title:post.title, summary:post.summary, link:itemLink(post)} : null,
+    bookingLink:sender.booking || "[your booking link]"
+  };
+  return "Write a short B2B nurture email from the sender to the lead.\n" +
+    "Rules:\n- Use only the facts in the JSON below. Do not invent results, metrics, client names, dates or links.\n" +
+    "- Never say or imply that you tracked their website visits or email opens. Refer to their interest naturally, e.g. \"since you've been exploring X\".\n" +
+    "- Reference the case study and the LinkedIn post if present, using their links exactly as given (keep any [placeholder] as is).\n" +
+    "- One call to action that fits recommendedAction. Include the booking link only if the grade is hot.\n" +
+    "- Body under 140 words, plain text, no markdown, sign off with the sender's name and company on separate lines.\n" +
+    "Return JSON only: {\"subject\": string, \"body\": string, \"why\": string (one sentence for the sender explaining the angle)}.\n\n" +
+    "Facts:\n" + JSON.stringify(facts, null, 2);
+}
+
+/* ---------- Content repository loading ---------- */
+const splitTags = v => Array.isArray(v) ? v.map(String).map(s => s.trim()).filter(Boolean) : String(v || "").replace(/^\[|\]$/g, "").split(/[,;]/).map(s => s.trim().replace(/^["']|["']$/g, "")).filter(Boolean);
+function inferType(path, declared){
+  const d = String(declared || "").toLowerCase();
+  if (/linkedin|post/.test(d)) return "linkedin_post";
+  if (/case/.test(d)) return "case_study";
+  const p = path.toLowerCase();
+  if (/linkedin|posts?\//.test(p) || /post/.test(p.split("/").pop())) return "linkedin_post";
+  return "case_study";
+}
+function niceName(path){ return path.split("/").pop().replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim(); }
+function parseText(text, path){
+  let fm = {}, body = text;
+  const m = text.match(/^---\s*\r?\n([\s\S]*?)\r?\n---\s*\r?\n?/);
+  if (m){
+    body = text.slice(m[0].length);
+    m[1].split(/\r?\n/).forEach(line => { const i = line.indexOf(":"); if (i > 0) fm[line.slice(0, i).trim().toLowerCase()] = line.slice(i + 1).trim(); });
+  }
+  const h = body.match(/^#\s+(.+)$/m);
+  const paras = body.replace(/^#.*$/gm, "").split(/\r?\n\s*\r?\n/).map(s => s.replace(/\s+/g, " ").trim()).filter(Boolean);
+  const title = fm.title || (h && h[1].trim()) || niceName(path);
+  const summary = fm.summary || (paras[0] || "").slice(0, 320);
+  return {type:inferType(path, fm.type), title, tags:splitTags(fm.tags), summary, body, url:fm.url || fm.link || "", file:path, sample:false};
+}
+function normalize(x, path){
+  if (!x || typeof x !== "object") return null;
+  const title = x.title || x.name || niceName(path);
+  const body = String(x.body || x.text || x.content || "");
+  return {type:inferType(path, x.type), title:String(title), tags:splitTags(x.tags || x.topics), summary:String(x.summary || x.excerpt || body.slice(0, 320)), body, url:String(x.url || x.link || ""), file:path, sample:false};
+}
+async function loadFiles(fileList){
+  const all = Array.from(fileList);
+  const files = all.filter(f => /\.(md|markdown|txt|json)$/i.test(f.name));
+  const items = []; let skipped = all.length - files.length;
+  for (const f of files){
+    const path = f.webkitRelativePath || f.name;
+    try{
+      const text = await f.text();
+      if (/\.json$/i.test(f.name)){
+        let d = JSON.parse(text);
+        if (!Array.isArray(d)) d = Array.isArray(d.items) ? d.items : [d];
+        d.forEach(x => { const n = normalize(x, path); if (n) items.push(n); });
+      } else items.push(parseText(text, path));
+    }catch(e){ skipped++; }
+  }
+  return {items, skipped};
+}
+
+
+/* ---------- Rendering ---------- */
+const first = l => l.name.split(" ")[0];
+function renderPicker(){
+  const p = $("picker");
+  if (!state.connected){
+    p.innerHTML = '<div class="cta"><div><p class="q">Connect ActiveCampaign</p><p class="why">Pull each lead’s website visits and email activity, match your case studies and posts, and get a nurture email ready to send.</p></div>' +
+      (state.connecting ? '<p class="step"><span class="spin" aria-hidden="true"></span><span id="conn-step">Connecting…</span></p>' : '<button class="btn primary" type="button" id="ac-go">Connect ActiveCampaign</button>') + '</div>';
+    if (!state.connecting) $("ac-go").onclick = () => connectAC();
+    return;
+  }
+  p.innerHTML = '<div class="get"><button class="btn" type="button" id="get-all">Retrieve all leads</button><span class="or">or</span>' +
+    '<form class="lookup" id="lookup" novalidate><input type="email" id="lookup-email" placeholder="Enter a lead’s email" aria-label="Lead email" autocomplete="off"><button class="btn primary" type="submit">Retrieve</button></form></div>' +
+    '<p class="note" id="lookup-note"></p><div id="leads-wrap"></div>';
+  $("get-all").onclick = () => retrieveAll();
+  $("lookup").addEventListener("submit", e => {
+    e.preventDefault();
+    const v = $("lookup-email").value.trim().toLowerCase();
+    if (!v || v.indexOf("@") < 1){ lookupNote("Enter a valid email address.", "warn"); return; }
+    const l = LEADS.find(x => x.email.toLowerCase() === v);
+    if (!l){ lookupNote("No contact found in ActiveCampaign for " + v + ".", "warn"); return; }
+    lookupNote(""); runLead(l);
+  });
+  renderLeads();
+}
+async function retrieveAll(){
+  if (state.busy || state.fetchingAll) return;
+  state.fetchingAll = true;
+  const b = $("get-all"); b.disabled = true; b.innerHTML = '<span class="spin" aria-hidden="true"></span> Retrieving leads…';
+  await wait(600); addLog("✓", "Retrieved contacts", LEADS.length + " leads");
+  b.innerHTML = '<span class="spin" aria-hidden="true"></span> Reading activity…';
+  await wait(700); addLog("✓", "Read site and email activity for all leads", "scored " + LEADS.length);
+  state.fetchingAll = false; state.allLoaded = true;
+  b.disabled = false; b.textContent = "Refresh all leads";
+  renderLeads();
+}
+function renderLeads(){
+  const w = $("leads-wrap"); if (!w) return;
+  if (!state.allLoaded){ w.innerHTML = ""; return; }
+  const rows = LEADS.map(l => ({l, sc:scoreLead(l)})).sort((a, b) => b.sc.s - a.sc.s);
+  w.innerHTML = '<p class="list-h">' + rows.length + ' leads · most engaged first</p><ul class="lead-rows">' + rows.map(r => {
+    const act = state.actions[r.l.id];
+    return '<li><button type="button" class="lead-row" data-id="' + r.l.id + '" aria-pressed="' + (!!state.lead && state.lead.id === r.l.id) + '">' +
+      '<span class="g ' + r.sc.grade + '" aria-hidden="true"></span><span class="ln">' + esc(r.l.name) + ' <span class="tsub" style="display:inline">· ' + esc(r.l.company) + '</span></span>' +
+      '<span class="lg ' + r.sc.grade + '">' + r.sc.grade + ' ' + r.sc.s + (act ? '<small>' + esc(act.split(" at ")[0]) + '</small>' : "") + '</span>' +
+      '<span class="le">' + esc(r.l.email) + '</span></button></li>';
+  }).join("") + '</ul>';
+  w.querySelectorAll(".lead-row").forEach(b => b.onclick = () => { const l = LEADS.find(x => x.id === b.dataset.id); if (l){ lookupNote(""); runLead(l); } });
+}
+function shortSummary(lead, a){
+  const pv = sum(lead.visits, v => v.count), days = new Set(lead.visits.map(v => v.daysAgo)).size;
+  const opened = lead.emails.filter(e => e.opens > 0).length, clicks = sum(lead.emails, e => e.clicks.length);
+  const topics = a.prof.slice(0, 2).map(p => p.topic);
+  return pv + " page view" + (pv === 1 ? "" : "s") + " over " + days + " day" + (days === 1 ? "" : "s") + (topics.length ? ", mostly on " + listJoin(topics) : "") +
+    ". Opened " + opened + " of " + lead.emails.length + " emails, " + clicks + " click" + (clicks === 1 ? "" : "s") + ".";
+}
+function askText(lead, a){
+  const f = first(lead), topic = a.prof[0] ? a.prof[0].topic : "your services";
+  if (a.sc.grade === "hot") return {q:"Send " + f + " a nurture email now?", why:"Buying signals this week. Suggested: the " + (a.cs ? "“" + a.cs.item.title + "”" : "best-matching") + " case study plus a call invite."};
+  if (a.sc.grade === "warm") return {q:"Send " + f + " something on " + topic + "?", why:"Researching, not ready to talk. Suggested: one case study and one LinkedIn post, no hard ask."};
+  return {q:"Re-engage " + f + " with a light-touch email?", why:"Gone quiet. Suggested: one useful piece, no call request."};
+}
+function renderLead(lead, a){
+  const ask = askText(lead, a), act = state.actions[lead.id];
+  $("lead").innerHTML =
+    '<div class="lead-top"><div><h2>' + esc(lead.name) + '</h2><p class="sub">' + esc(lead.title) + ' · ' + esc(lead.company) + ' · ' + esc(lead.location) + '</p></div>' +
+    '<div class="score ' + a.sc.grade + '" aria-label="Engagement ' + a.sc.s + ' of 100, ' + a.sc.grade + '"><b>' + a.sc.s + '</b><span>' + a.sc.grade + '</span></div></div>' +
+    '<p class="summary">' + esc(shortSummary(lead, a)) + '</p>' +
+    '<ul class="sig">' + a.sig.slice(0, 3).map(s => '<li class="' + s.lvl + '">' + esc(s.text) + '</li>').join("") + '</ul>' +
+    '<div class="ask"><p class="q">' + esc(ask.q) + '</p><p class="why">' + esc(ask.why) + '</p>' +
+    (act ? '<p class="done-note">' + esc(act) + '</p>' : "") +
+    '<div class="row" id="ask-actions"><button class="btn primary" type="button" id="a-draft">Draft email</button><button class="btn" type="button" id="a-snooze">Snooze 3 days</button><button class="btn text" type="button" id="a-skip">Skip</button></div>' +
+    '<p class="note" id="ask-note"></p><div id="draft"></div></div>';
+  $("a-draft").onclick = () => draftEmail();
+  $("a-snooze").onclick = () => markAction("Snoozed 3 days");
+  $("a-skip").onclick = () => markAction("Skipped");
+}
+function markAction(label){
+  if (!state.lead) return;
+  state.actions[state.lead.id] = label; store.set("lnc.actions", state.actions);
+  const n = $("ask-note"); n.textContent = label + "."; n.className = "note ok";
+  addLog("·", "Action: " + label);
+  renderLeads();
+}
+function renderActivity(lead){
+  const rows = lead.visits.slice().sort((a, b) => a.daysAgo - b.daysAgo || b.count - a.count);
+  $("web").innerHTML = '<table><thead><tr><th>Page</th><th class="num">Views</th><th class="num">Avg time</th><th class="num">Last</th></tr></thead><tbody>' +
+    rows.map(v => '<tr><td>' + esc(v.title) + '<span class="tsub">' + esc(v.path) + '</span></td><td class="num">' + v.count + '</td><td class="num">' + Math.floor(v.secs / 60) + ':' + String(v.secs % 60).padStart(2, "0") + '</td><td class="num">' + dateOf(v.daysAgo) + '</td></tr>').join("") + '</tbody></table>';
+  $("mail").innerHTML = '<table><thead><tr><th>Campaign</th><th class="num">Sent</th><th class="num">Opens</th><th>Clicked</th></tr></thead><tbody>' +
+    lead.emails.slice().sort((a, b) => a.sent - b.sent).map(e => '<tr><td>' + esc(e.campaign) + '<span class="tsub">' + esc(e.subject) + '</span></td><td class="num">' + dateOf(e.sent) + '</td><td class="num">' + e.opens + '</td><td>' + (e.clicks.length ? e.clicks.map(c => esc(c.label)).join("<br>") : '<span class="tsub">—</span>') + '</td></tr>').join("") + '</tbody></table>';
+  $("m-activity").textContent = sum(lead.visits, v => v.count) + " page views · " + sum(lead.emails, e => e.opens) + " opens · " + (n => n + " click" + (n === 1 ? "" : "s"))(sum(lead.emails, e => e.clicks.length));
+}
+function itemLink(it){ return it.url ? it.url : "[link: " + it.title + "]"; }
+function matchHTML(m, label){
+  if (!m) return '<div class="match"><span class="k">' + label + '</span><span class="d">No match in your content.</span></div>';
+  const it = m.item;
+  return '<div class="match"><span class="k">' + label + (it.sample ? " · sample" : " · " + esc(it.file)) + '</span><span class="t">' + esc(it.title) + '</span>' +
+    (it.summary ? '<span class="d">' + esc(it.summary) + '</span>' : "") +
+    '<span class="d">Matched on ' + esc(m.hits.slice(0, 3).map(h => h.topic).join(", ")) + '</span>' +
+    (it.url ? '<a href="' + esc(it.url) + '" target="_blank" rel="noopener">' + esc(it.url) + '</a>' : "") + '</div>';
+}
+function renderContent(a){
+  $("content").innerHTML = matchHTML(a.cs, "Case study") + matchHTML(a.post, "LinkedIn post");
+  $("m-content").textContent = a.cs ? a.cs.item.title : "no match";
+}
+function renderSources(){
+  const cs = state.repo.filter(i => i.type === "case_study").length, po = state.repo.filter(i => i.type === "linkedin_post").length;
+  const repoTxt = (state.repoLocal ? state.repoLabel : "Sample content") + " · " + cs + " case studies, " + po + " posts";
+  $("repo-detail").textContent = repoTxt;
+  $("repo-line").textContent = state.repoLocal ? state.repoLabel : "sample content";
+  $("repo-reset").hidden = !state.repoLocal;
+  $("m-sources").textContent = (state.connected ? "ActiveCampaign connected" : "ActiveCampaign not connected") + " · " + (state.repoLocal ? "your folder" : "sample content");
+}
+
+/* ---------- Log and progress ---------- */
+function addLog(mark, msg, result){
+  const li = document.createElement("li");
+  li.innerHTML = '<span>' + clock() + '</span><span class="' + (mark === "✓" ? "ok" : "") + '">' + mark + '</span><span class="m">' + esc(msg) + (result ? ' <span class="r">→ ' + esc(result) + '</span>' : "") + '</span>';
+  $("log").appendChild(li);
+  $("m-log").textContent = $("log").children.length + " entries";
+}
+function showProgress(text, pct){
+  let bar = $("bar");
+  if (!bar){
+    $("lead").innerHTML = '<div class="progress"><div class="bar"><i id="bar"></i></div><p class="step"><span class="spin" aria-hidden="true"></span><span id="step-text"></span></p></div>';
+    bar = $("bar");
+  }
+  const st = $("step-text") || $("lead").querySelector(".step span:last-child");
+  st.textContent = text;
+  requestAnimationFrame(() => { bar.style.width = pct + "%"; });
+}
+async function step(msg, ms, pct, resultFn){
+  showProgress(msg + "…", pct);
+  await wait(ms);
+  addLog("✓", msg, resultFn ? resultFn() : "");
+}
+
+/* ---------- Connection ---------- */
+async function connectAC(){
+  if (state.connecting || state.connected) return;
+  state.connecting = true; renderPicker();
+  $("ac-line").textContent = "Connecting to ActiveCampaign…";
+  const steps = ["Authorizing", "Verifying account access", "Checking site tracking", "Loading contact index"];
+  for (const s of steps){ const el = $("conn-step"); if (el) el.textContent = s + "…"; await wait(450); addLog("✓", s); }
+  state.connecting = false; state.connected = true;
+  $("ac-line").innerHTML = '<span class="okdot" aria-hidden="true"></span>ActiveCampaign connected';
+  $("ac-detail").textContent = "Connected · site tracking on " + SITE;
+  $("ac-connect").hidden = false;
+  renderPicker(); renderSources();
+  const inp = $("lookup-email"); if (inp) inp.focus();
+}
+function disconnectAC(){
+  if (state.busy) return;
+  state.connected = false; state.allLoaded = false; state.lead = null; state.analysis = null;
+  $("lead").innerHTML = ""; $("ac-line").textContent = "ActiveCampaign not connected";
+  $("ac-detail").textContent = "Not connected"; $("ac-connect").hidden = true;
+  ["web","mail","content"].forEach(id => $(id).innerHTML = ""); ["m-activity","m-content"].forEach(id => $(id).textContent = "");
+  $("payload").textContent = "{}";
+  addLog("·", "Disconnected");
+  renderPicker(); renderSources();
+}
+
+/* ---------- Analysis ---------- */
+async function runLead(lead){
+  if (state.busy) return;
+  if (!state.connected) return;
+  state.busy = true; state.lead = lead; state.analysis = null;
+  renderLeads();
+  if ($("lookup-email")) $("lookup-email").value = lead.email;
+  $("lead").innerHTML = "";
+  addLog("·", "Lead: " + lead.email);
+  const pv = sum(lead.visits, v => v.count);
+  await step("Looking up contact by email", 420, 35, () => "#" + lead.contactId);
+  await step("Reading contact fields and deal stage", 380, 48, () => lead.stage);
+  await step("Reading site-tracking visits", 520, 62, () => { renderActivity(lead); return pv + " page views"; });
+  await step("Reading email campaign activity", 480, 76, () => sum(lead.emails, e => e.opens) + " opens, " + sum(lead.emails, e => e.clicks.length) + " clicks");
+  await step("Matching case studies and posts", 420, 90, () => state.repo.length + " items scanned");
+  const a = analyze(lead); state.analysis = a;
+  await step("Scoring engagement", 300, 100, () => a.sc.s + "/100 " + a.sc.grade);
+  renderContent(a); renderLead(lead, a);
+  $("payload").textContent = JSON.stringify(payloadFor(lead), null, 2);
+  state.busy = false;
+}
+
+/* ---------- Draft ---------- */
+async function draftEmail(){
+  const lead = state.lead, a = state.analysis; if (!lead || !a) return;
+  const sender = senderNow();
+  $("ask-actions").hidden = true;
+  $("draft").innerHTML = '<p class="step"><span class="spin" aria-hidden="true"></span>Writing a draft for ' + esc(first(lead)) + '…</p>';
+  let draft = null, source = "template", note = "";
+  const sampler = await getSampler();
+  if (sampler && typeof sampler.json === "function"){
+    try{
+      const v = await sampler.json(claudePrompt(lead, a, sender), {modelTier:"default"});
+      if (v && typeof v.subject === "string" && typeof v.body === "string" && v.body.trim()){ draft = v; source = "claude"; }
+      else note = "Claude returned an unexpected format, so this is the template draft.";
+    }catch(e){
+      const code = e && e.code;
+      note = code === "not_granted" ? "Claude drafting isn't allowed here, so this is the template draft."
+        : code === "rate_limited" ? "Claude is busy right now, so this is the template draft. Try Redraft in a minute."
+        : "Claude couldn't draft this time, so this is the template draft.";
+    }
+  } else note = "Claude isn't available in this view, so this is the template draft.";
+  if (!draft) draft = templateEmail(lead, a, sender);
+  addLog("✓", "Draft ready", source === "claude" ? "by Claude" : "template");
+  renderDraft(lead, draft, source, note);
+}
+function renderDraft(lead, d, source, note){
+  $("draft").innerHTML = '<div class="draft">' +
+    '<p class="to">To ' + esc(lead.name) + ' &lt;' + esc(lead.email) + '&gt; · ' + (source === "claude" ? "drafted by Claude" : "template draft") + '</p>' +
+    (note ? '<p class="note warn">' + esc(note) + '</p>' : "") +
+    '<input type="text" id="e-subject" aria-label="Subject">' +
+    '<textarea id="e-body" rows="13" aria-label="Email body"></textarea>' +
+    '<div class="row"><button class="btn primary" type="button" id="e-send">Approve email</button><button class="btn" type="button" id="e-copy">Copy</button><button class="btn text" type="button" id="e-redraft">Redraft</button><button class="btn text" type="button" id="e-close">Close</button></div>' +
+    '<div id="e-confirm"></div><p class="note" id="e-note"></p></div>';
+  $("e-subject").value = d.subject; $("e-body").value = d.body;
+  $("e-redraft").onclick = () => draftEmail();
+  $("e-close").onclick = () => { $("draft").innerHTML = ""; $("ask-actions").hidden = false; };
+  $("e-copy").onclick = async () => {
+    try{ await navigator.clipboard.writeText("Subject: " + $("e-subject").value + "\n\n" + $("e-body").value); eNote("Copied.", "ok"); }
+    catch(e){ $("e-body").select(); eNote("Copy was blocked. The body is selected; press Ctrl+C or ⌘C.", "warn"); }
+  };
+  $("e-send").onclick = () => {
+    const t = new Date().toLocaleTimeString(undefined, {hour:"2-digit", minute:"2-digit"});
+    state.actions[lead.id] = "Email approved at " + t; store.set("lnc.actions", state.actions);
+    addLog("✓", "Email approved for " + lead.email);
+    eNote("Approved at " + t + ".", "ok");
+    renderLeads();
+  };
+}
+function eNote(msg, cls){ const n = $("e-note"); n.textContent = msg; n.className = "note " + (cls || ""); }
+
+/* ---------- Your content folder ---------- */
+async function useFiles(fileList){
+  const n = $("repo-note");
+  if (!fileList || !fileList.length) return;
+  n.textContent = "Reading files…"; n.className = "note";
+  const res = await loadFiles(fileList);
+  if (!res.items.length){ n.textContent = "No usable .md, .txt or .json files found. Keeping the current content."; n.className = "note warn"; return; }
+  const top = (fileList[0].webkitRelativePath || "").split("/")[0];
+  state.repo = res.items; state.repoLocal = true; state.repoLabel = top ? top : res.items.length + " local files";
+  n.textContent = "Loaded " + res.items.length + " item" + (res.items.length === 1 ? "" : "s") + (res.skipped ? ", skipped " + res.skipped + " other file" + (res.skipped === 1 ? "" : "s") : "") + ".";
+  n.className = "note ok";
+  renderSources(); rematch();
+}
+function rematch(){
+  if (!state.lead || !state.analysis || state.busy) return;
+  const a = analyze(state.lead); state.analysis = a;
+  renderContent(a); renderLead(state.lead, a);
+  addLog("✓", "Re-matched against " + (state.repoLocal ? state.repoLabel : "sample content"), a.cs ? a.cs.item.title : "no match");
+}
+
+/* ---------- Wiring ---------- */
+function lookupNote(msg, cls){ const n = $("lookup-note"); if (!n) return; n.textContent = msg; n.className = "note " + (cls || ""); }
+$("ac-connect").onclick = () => disconnectAC();
+$("folder-input").addEventListener("change", e => { useFiles(e.target.files); e.target.value = ""; });
+$("files-input").addEventListener("change", e => { useFiles(e.target.files); e.target.value = ""; });
+$("repo-reset").onclick = () => { state.repo = SAMPLE_REPO.slice(); state.repoLocal = false; state.repoLabel = "sample content"; $("repo-note").textContent = ""; renderSources(); rematch(); };
+const drop = $("drop");
+["dragenter","dragover"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave","drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", async e => {
+  const dt = e.dataTransfer; if (!dt) return;
+  const entries = dt.items ? Array.from(dt.items).map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean) : [];
+  if (entries.some(en => en.isDirectory)){
+    const files = [];
+    const walk = (entry, prefix) => new Promise(res => {
+      if (entry.isFile){ entry.file(f => { try{ Object.defineProperty(f, "webkitRelativePath", {value:prefix + f.name}); }catch(x){} files.push(f); res(); }, () => res()); }
+      else if (entry.isDirectory){
+        const r = entry.createReader(), all = [];
+        const read = () => r.readEntries(async ents => { if (!ents.length){ for (const c of all) await walk(c, prefix + entry.name + "/"); res(); } else { all.push.apply(all, ents); read(); } }, () => res());
+        read();
+      } else res();
+    });
+    for (const en of entries) await walk(en, "");
+    useFiles(files);
+  } else useFiles(dt.files);
+});
+["s-name","s-company","s-booking"].forEach((id, i) => {
+  const key = ["name","company","booking"][i];
+  $(id).value = state.sender[key] || "";
+  $(id).addEventListener("input", () => { state.sender[key] = $(id).value; store.set("lnc.sender", state.sender); });
+});
+
+renderPicker(); renderSources();
+})();
+</script>
+</body>
+</html>

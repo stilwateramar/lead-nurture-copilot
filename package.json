@@ -1,0 +1,21 @@
+{
+  "name": "lead-nurture-copilot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Lead Nurture Copilot for AKD AI Solutions: ActiveCampaign engagement scoring, content matching and Claude-drafted nurture emails.",
+  "type": "module",
+  "main": "server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "probe": "node scripts/probe-ac.mjs",
+    "check": "node scripts/smoke-test.mjs"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2"
+  }
+}

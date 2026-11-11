@@ -1,0 +1,32 @@
+{
+  "_help": "Maps URL paths, clicked-link URLs and campaign names to interest topics. 'match' is a case-insensitive substring (or list of them). Topics should use the same words as the tags on your case studies and LinkedIn posts so matching works. If no rule matches, the last URL segment is used as the topic. Edit freely.",
+  "titlePrefixes": {
+    "/case-studies/": "Case study: ",
+    "/case-study/": "Case study: ",
+    "/blog/": "Blog: ",
+    "/services/": "",
+    "/insights/": "Blog: "
+  },
+  "ignoreSegments": ["case-studies", "case-study", "blog", "services", "insights", "www"],
+  "rules": [
+    { "match": "pricing", "topics": ["pricing"] },
+    { "match": "contact", "topics": ["contact"] },
+    { "match": ["performance-marketing", "performance marketing", "optimizer"], "topics": ["performance marketing", "budget allocation"] },
+    { "match": ["google-ads", "google ads"], "topics": ["google ads"] },
+    { "match": ["meta-ads", "meta ads", "facebook-ads"], "topics": ["meta ads"] },
+    { "match": ["agency", "agencies"], "topics": ["agency"] },
+    { "match": ["seo", "keyword"], "topics": ["seo", "keyword research"] },
+    { "match": ["reporting", "report"], "topics": ["reporting"] },
+    { "match": ["automation", "automate", "workflow"], "topics": ["automation"] },
+    { "match": ["lms", "learning-management", "training"], "topics": ["lms", "training"] },
+    { "match": "logistics", "topics": ["logistics"] },
+    { "match": ["analytics", "dashboard", "mongodb", "natural-language", "nl-query"], "topics": ["analytics", "natural language", "reporting"] },
+    { "match": ["rag", "chatbot", "assistant"], "topics": ["rag", "chatbot"] },
+    { "match": ["creative", "content-production", "content production"], "topics": ["creative", "content production"] },
+    { "match": ["image-generation", "imagery", "product-imagery"], "topics": ["image generation", "creative"] },
+    { "match": ["ecommerce", "d2c", "shopify"], "topics": ["ecommerce"] },
+    { "match": ["custom-software", "software-development"], "topics": ["custom software"] },
+    { "match": ["cybersecurity", "security"], "topics": ["cybersecurity"] },
+    { "match": ["machine-learning", "data-science", "ml-"], "topics": ["machine learning", "data science"] }
+  ]
+}
