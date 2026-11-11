@@ -30,6 +30,7 @@ const contentDir = path.resolve(__dirname, config.contentDir);
 
 // Render health check (no auth, no data).
 app.get('/healthz', (req, res) => res.json({ ok: true }));
+app.get('/favicon.ico', (req, res) => res.status(204).end()); // no icon; keeps the browser's automatic request away from /login
 
 /* ---------- Public demo (/demo): no sign-in, no ActiveCampaign ----------
    The five fictional leads, scoring, matching, approvals and the log all run in the browser (public/demo-data.js).
