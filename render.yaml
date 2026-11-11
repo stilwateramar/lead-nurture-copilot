@@ -3,7 +3,7 @@ services:
   - type: web
     name: lead-nurture-copilot
     runtime: node
-    plan: starter            # free also works but sleeps when idle
+    plan: free               # sleeps when idle; switch to starter (always on) once billing is added in Render
     region: singapore
     buildCommand: npm ci
     startCommand: npm start
