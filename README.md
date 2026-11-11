@@ -9,7 +9,12 @@ cp .env.example .env      # leave AC_* blank to run on demo data
 npm run dev               # http://localhost:3000
 npm run check             # offline tests for mappers and the draft guard
 ```
-With `APP_PASSWORD` set, the browser asks for a login (user `APP_USER`, default `admin`).
+With `APP_PASSWORD` set, the app shows a sign-in page (user `APP_USER`, default `admin`). Sessions last 7 days; changing the password signs everyone out.
+
+## Demo (no sign-in, no ActiveCampaign)
+`/demo` runs the whole flow on five fictional leads in the browser (`public/demo-data.js`): connect, retrieve all leads, lookup by email, scoring, content matching, your own content folder, draft, approve, copy, snooze, the extraction log and the raw payload. Everything is labelled "demo data".
+- Only two things come from the server: your `content/` files and Claude drafts (the API key must stay on the server). Drafts on `/demo` work for the demo leads only and are rate-limited (20 per IP per 10 minutes, 300 a day in total). If Claude is unavailable, the template draft is used.
+- While the server has no `AC_API_URL` / `AC_API_KEY`, `/` opens `/demo` directly. Once ActiveCampaign is connected, `/` needs sign-in and `/demo` stays public.
 
 ## Connect ActiveCampaign
 1. In ActiveCampaign, open **Settings → Developer** and copy the API URL and key into `.env` (`AC_API_URL`, `AC_API_KEY`).
@@ -46,6 +51,8 @@ Short summary paragraph used in matching and in the email.
 The 12 built-in sample items are used until this folder has files. You can still drop a folder in the UI for a one-off session.
 
 ## Deploy to Render
+Live at https://lead-nurture-copilot.onrender.com (free plan: it sleeps when idle, so the first visit after a while takes up to a minute). Pushing to `main` redeploys.
+
 1. Push this folder to a GitHub repo.
 2. In Render, go to **New → Blueprint**, pick the repo, and Render reads `render.yaml`.
 3. Fill in the secrets it asks for: `APP_PASSWORD` (required), `AC_API_URL`, `AC_API_KEY`, `ANTHROPIC_API_KEY` (or `OPENROUTER_API_KEY` with `LLM_PROVIDER=openrouter`), and `SENDER_BOOKING_URL`.
@@ -55,3 +62,4 @@ The 12 built-in sample items are used until this folder has files. You can still
 - Sending: Approve only records the approval (in the browser's localStorage).
 - Sample content items have no metrics and no links until you add real files.
 - Approvals and snoozes are per browser, not shared across users.
+- Live ActiveCampaign numbers aren't verified yet: run `npm run probe` against a real contact and fix `src/ac/map.js` (see the UNVERIFIED notes).

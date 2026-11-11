@@ -63,4 +63,30 @@ assert.equal(checkDraft({ subject: 's', body: 'I noticed you visited our pricing
 assert.equal(checkDraft({ subject: 's', body: "Since you've been exploring SEO, here is a read." }, facts), null);
 assert.equal(checkDraft({ body: 'x' }, facts), 'unexpected_format');
 
+// Demo source (shared by the server and the browser-only /demo page)
+const demo = await import('../src/demo.js');
+const dl = await demo.listLeads();
+assert.equal(dl.leads.length, 5);
+assert.ok(dl.leads.every(l => l.email.endsWith('.example') && l.demo === true));
+const dg = await demo.getLead('priya.menon@northpeak-logistics.example');
+assert.equal(dg.lead.name, 'Priya Menon'); assert.ok(dg.payload._demo); assert.ok(dg.log.length >= 4);
+assert.equal((await demo.getLead('nobody@x.com')).notFound, true);
+assert.equal(demo.isDemoLead({ firstName: 'Priya', company: 'Northpeak Logistics' }), true);
+assert.equal(demo.isDemoLead({ firstName: 'Priya', company: 'Acme' }), false);
+assert.equal(demo.isDemoLead(null), false);
+
+// Session cookie: valid after sign-in, invalid when the password changes or the cookie is tampered with
+const { startSession, hasSession, checkCredentials } = await import('../src/auth.js');
+const auth = { user: 'admin', password: 'pw-1' };
+const cookies = []; startSession({ append: (k, v) => cookies.push(v) }, auth, true);
+const cookie = cookies[0].split(';')[0];
+assert.ok(/HttpOnly/.test(cookies[0]) && /Secure/.test(cookies[0]) && /SameSite=Lax/.test(cookies[0]));
+assert.equal(hasSession({ headers: { cookie } }, auth), true);
+assert.equal(hasSession({ headers: { cookie } }, { user: 'admin', password: 'pw-2' }), false);
+assert.equal(hasSession({ headers: { cookie: cookie.slice(0, -2) + 'xx' } }, auth), false);
+assert.equal(hasSession({ headers: {} }, auth), false);
+assert.equal(checkCredentials(auth, 'admin', 'pw-1'), true);
+assert.equal(checkCredentials(auth, 'admin', 'nope'), false);
+assert.equal(checkCredentials({ user: 'admin', password: '' }, 'admin', ''), false);
+
 console.log('All checks passed.');

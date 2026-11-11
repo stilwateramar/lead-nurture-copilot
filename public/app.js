@@ -1,8 +1,11 @@
 /* Lead Nurture Copilot UI. Same layout and behaviour as the artifact v3, with data from the server:
-   POST /api/connect, GET /api/leads, GET /api/lead?email=, POST /api/draft, GET /api/content. */
+   POST /api/connect, GET /api/leads, GET /api/lead?email=, POST /api/draft, GET /api/content.
+   At /demo the same UI runs on the five fictional leads in your browser (public/demo-data.js): no sign-in and
+   no ActiveCampaign. Only Claude drafts and the content/ folder come from the server's public /demo/api/ routes. */
 (function () {
   "use strict";
   const L = window.LNC;
+  const LOCAL = /^\/demo\/?$/.test(location.pathname);
   const $ = id => document.getElementById(id);
   const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const clockOf = iso => new Date(iso || Date.now()).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
@@ -11,12 +14,43 @@
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
   };
 
-  async function api(path, opts) {
+  async function remote(path, opts) {
     const r = await fetch(path, Object.assign({ headers: { "content-type": "application/json" }, credentials: "same-origin" }, opts || {}));
     let j = {};
     try { j = await r.json(); } catch (e) {}
     if (!r.ok) { const err = new Error(j.error || ("HTTP " + r.status)); err.status = r.status; err.log = j.log || []; throw err; }
     return j;
+  }
+  const api = (path, opts) => LOCAL ? localApi(path, opts) : remote(path, opts);
+
+  /* Browser-only demo: answers the same API calls from public/demo-data.js. */
+  let demoSrc = null;
+  const demoSource = () => demoSrc || (demoSrc = window.LNC_DEMO.create({
+    site: (state.status && state.status.siteDomain) || "akdaisolutions.com",
+    connectNote: "fictional leads, running in your browser",
+    payloadNote: "Demo data: fictional leads generated in your browser. No ActiveCampaign connection."
+  }));
+  async function localApi(path, opts) {
+    const u = new URL(path, location.origin);
+    switch (u.pathname) {
+      case "/api/status": {
+        let s = {};
+        try { s = await remote("/demo/api/status"); } catch (e) {}
+        return { mode: "demo", local: true, siteDomain: s.siteDomain || "akdaisolutions.com", windowDays: 30, maxLeads: 25, opensSource: "demo",
+          llm: s.llm || { available: false }, sender: s.sender || { name: "Amar Kumar Dani", company: "AKD AI Solutions", booking: "" }, auth: false };
+      }
+      case "/api/connect": return demoSource().connect();
+      case "/api/leads": return demoSource().listLeads();
+      case "/api/lead": {
+        const email = String(u.searchParams.get("email") || "").trim().toLowerCase();
+        const r = demoSource().getLead(email);
+        if (r.notFound) { const err = new Error("No demo lead with " + email + ". Use Retrieve all leads to see the five demo leads."); err.status = 404; err.log = r.log; throw err; }
+        return r;
+      }
+      case "/api/content": return remote("/demo/api/content");
+      case "/api/draft": return remote("/demo/api/draft", opts);
+    }
+    throw new Error("Not available in the demo.");
   }
 
   const state = {
@@ -108,7 +142,7 @@
       addServerLog(r.log);
       state.connecting = false; state.connected = true;
       $("ac-line").innerHTML = '<span class="okdot" aria-hidden="true"></span>' + (r.mode === "demo" ? "Demo data" : "ActiveCampaign connected");
-      $("ac-detail").textContent = r.mode === "demo" ? "Demo data · set AC_API_URL and AC_API_KEY on the server to connect" : "Connected · " + r.account + (r.user ? " · " + r.user : "") + " · site tracking on " + r.siteDomain;
+      $("ac-detail").textContent = r.mode === "demo" ? (LOCAL ? "Demo data · runs in your browser, no ActiveCampaign connection needed" : "Demo data · set AC_API_URL and AC_API_KEY on the server to connect") :"Connected · " + r.account + (r.user ? " · " + r.user : "") + " · site tracking on " + r.siteDomain;
       $("ac-connect").hidden = false;
       renderPicker(); renderSources();
       const inp = $("lookup-email"); if (inp) inp.focus();
@@ -232,7 +266,9 @@
     if (state.status && !isDemo()) {
       $("ac-help").textContent = "Reads contacts, site-tracking visits on " + state.status.siteDomain + ", campaign sends and clicks" + (state.status.opensSource === "v1" ? ", and opens per campaign" : "") + " for the last " + state.status.windowDays + " days.";
     } else if (isDemo()) {
-      $("ac-help").textContent = "Demo data: the server has no AC_API_URL / AC_API_KEY yet.";
+      $("ac-help").textContent = LOCAL
+        ? "Demo data: five fictional leads, scored and matched in your browser. Only Claude drafts and your content folder come from the server."
+        : "Demo data: the server has no AC_API_URL / AC_API_KEY yet.";
     }
   }
 
@@ -255,7 +291,7 @@
           : r.code === "invented_link" || r.code === "tracking_language" ? r.message + " Showing the template draft instead; Redraft to try again."
           : "Claude couldn't draft this time, so this is the template draft.";
       } catch (e) { note = "Claude couldn't draft this time, so this is the template draft."; }
-    } else note = "No Claude API key on the server, so this is the template draft.";
+    } else note = LOCAL ? "Claude drafting isn't available right now, so this is the template draft." : "No Claude API key on the server, so this is the template draft.";
     if (!draft) draft = L.templateEmail(lead, a, sender);
     addLog("✓", "Draft ready", source === "claude" ? "by Claude" : "template");
     renderDraft(lead, draft, source, note);
@@ -353,6 +389,8 @@
 
   async function init() {
     try { state.status = await api("/api/status"); } catch (e) { state.status = null; }
+    if (LOCAL) document.title = "Lead Nurture · demo";
+    $("signout").hidden = LOCAL || !(state.status && state.status.auth);
     const def = (state.status && state.status.sender) || { name: "Amar Kumar Dani", company: "AKD AI Solutions", booking: "" };
     if (!state.sender) state.sender = { name: def.name, company: def.company, booking: def.booking };
     ["s-name", "s-company", "s-booking"].forEach((id, i) => {
