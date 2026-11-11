@@ -33,13 +33,15 @@ services:
       - key: AC_OPENS_SOURCE     # v1 | off
         value: v1
       - key: LLM_PROVIDER        # anthropic | openrouter
-        value: anthropic
+        value: openrouter
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: ANTHROPIC_MODEL
         value: claude-sonnet-5-5
       - key: OPENROUTER_API_KEY
         sync: false
+      - key: OPENROUTER_MODEL
+        value: anthropic/claude-sonnet-5.5
       - key: SENDER_NAME
         value: Amar Kumar Dani
       - key: SENDER_COMPANY

@@ -39,7 +39,7 @@ export const config = {
     anthropicKey: String(process.env.ANTHROPIC_API_KEY || '').trim(),
     anthropicModel: String(process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5').trim(),
     openrouterKey: String(process.env.OPENROUTER_API_KEY || '').trim(),
-    openrouterModel: String(process.env.OPENROUTER_MODEL || 'anthropic/claude-sonnet-4.5').trim()
+    openrouterModel: String(process.env.OPENROUTER_MODEL || 'anthropic/claude-sonnet-5.5').trim()
   },
 
   sender: {
